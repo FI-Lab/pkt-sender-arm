@@ -161,6 +161,16 @@ struct
     uint64_t rx_mbps;
 }port_stats[ODP_CONFIG_PKTIO_ENTRIES];
 
+#define D02_MAX_ETH 2
+struct
+{
+    uint64_t tx_pps;
+    uint64_t tx_mbps;
+    uint64_t tx_total;
+    uint64_t rx_pps;
+    uint64_t rx_mbps;
+    uint64_t rx_total;
+}eth_stats[D02_MAX_ETH];
 
 struct lcore_args
 {
@@ -321,6 +331,7 @@ static void* print_stats(void* args)
     {
         sleep(PRINT_GAP);
         i = system("clear");
+        memset(eth_stats, 0, sizeof(eth_stats[0]) * D02_MAX_ETH);
         for(i = 0; i < nb_ports; i++)
         {
             tx_total = port_stats[i].tx_total;
@@ -336,10 +347,29 @@ static void* print_stats(void* args)
             port_stats[i].last_rx_total = rx_total;
             port_stats[i].rx_pps = (uint64_t)((rx_total - rx_last_total) / time_diff);
             port_stats[i].rx_mbps = port_stats[i].rx_pps * (frame_len) * 8 / (1000000);
-
+            j = (i * 2) / nb_ports;
+            eth_stats[j].tx_pps += port_stats[i].tx_pps;
+            eth_stats[j].tx_mbps += port_stats[i].tx_mbps;
+            eth_stats[j].tx_total += tx_total;
+            eth_stats[j].rx_pps += port_stats[i].rx_pps;
+            eth_stats[j].rx_mbps += port_stats[i].rx_mbps;
+            eth_stats[j].rx_total += rx_total;
         }
         last_cyc = odp_time_cycles();
-        for(i = 0; i < nb_ports; i++)
+
+        for(i = 0; i < D02_MAX_ETH; i++)
+        {
+            printf("Eth-port %d Statistics:\n", i);
+            printf(">>>>>>>>>>>tx rate: %llupps\n", (unsigned long long)eth_stats[i].tx_pps);
+            printf(">>>>>>>>>>>tx rate: %lluMbps\n", (unsigned long long)eth_stats[i].tx_mbps);
+            printf(">>>>>>>>>>tx total: %llu\n", (unsigned long long)eth_stats[i].tx_total);
+            printf("\n");
+            printf(">>>>>>>>>>>rx rate: %llupps\n", (unsigned long long)eth_stats[i].rx_pps);
+            printf(">>>>>>>>>>>rx rate: %lluMbps\n", (unsigned long long)eth_stats[i].rx_mbps);
+            printf(">>>>>>>>>>rx total: %llu\n", (unsigned long long)eth_stats[i].rx_total);
+            printf("============================\n");
+        }
+        /*for(i = 0; i < nb_ports; i++)
         {
             printf("Port %d Statistics:\n", i);
             printf(">>>>>>>>>>>tx rate: %llupps\n", (unsigned long long)port_stats[i].tx_pps);
@@ -350,7 +380,7 @@ static void* print_stats(void* args)
             printf(">>>>>>>>>>>rx rate: %lluMbps\n", (unsigned long long)port_stats[i].rx_mbps);
             printf(">>>>>>>>>>rx total: %llu\n", (unsigned long long)port_stats[i].rx_total);
             printf("============================\n");
-        }
+        }*/
     }
 }
 
